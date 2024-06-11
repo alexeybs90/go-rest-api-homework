@@ -43,7 +43,7 @@ var tasks = map[string]Task{
 
 // Ниже напишите обработчики для каждого эндпоинта
 func getTasks(w http.ResponseWriter, r *http.Request) {
-	// сериализуем данные из слайса artists
+	// сериализуем данные из мапы tasks
 	resp, err := json.Marshal(tasks)
 	if err != nil {
 		http.Error(w, "Ошибка сервера", http.StatusInternalServerError)
@@ -55,10 +55,13 @@ func getTasks(w http.ResponseWriter, r *http.Request) {
 	// так как все успешно, то статус OK
 	w.WriteHeader(http.StatusOK)
 	// записываем сериализованные в JSON данные в тело ответа
-	w.Write(resp)
+	_, err = w.Write(resp)
+	if err != nil {
+		fmt.Println(err.Error())
+	}
 }
 
-func postTask(w http.ResponseWriter, r *http.Request) {
+func createTask(w http.ResponseWriter, r *http.Request) {
 	var task Task
 	var buf bytes.Buffer
 
@@ -73,6 +76,16 @@ func postTask(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	_, ok := tasks[task.ID]
+	if ok {
+		http.Error(w, "Задача уже есть", http.StatusBadRequest)
+		return
+	}
+	if len(task.Applications) == 0 {
+		task.Applications = []string{
+			r.UserAgent(),
+		}
+	}
 	tasks[task.ID] = task
 
 	w.Header().Set("Content-Type", "application/json")
@@ -96,7 +109,10 @@ func getTask(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
-	w.Write(resp)
+	_, err = w.Write(resp)
+	if err != nil {
+		fmt.Println(err.Error())
+	}
 }
 
 func deleteTask(w http.ResponseWriter, r *http.Request) {
@@ -119,7 +135,7 @@ func main() {
 
 	// здесь регистрируйте ваши обработчики
 	r.Get("/tasks", getTasks)
-	r.Post("/tasks", postTask)
+	r.Post("/tasks", createTask)
 	r.Get("/tasks/{id}", getTask)
 	r.Delete("/tasks/{id}", deleteTask)
 
